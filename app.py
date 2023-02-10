@@ -1,40 +1,48 @@
-# import streamlit as st
-
-# st.title('ndn test')
-# st.write('test')
-
-import pulp
 import numpy
-# solver_list = pulp.listSolvers()
-# print(solver_list)
+import pulp
+import streamlit as st
 
-num_processes = 3
-num_workers = 7
+tab_processes, tab_workers, tab_model = st.tabs(
+    ['processes', 'workers', 'model'])
 
-process_volumes = [10, 20, 30]
+num_processes = tab_processes.slider('number of processes', 1, 30)
 
-MAX_VOLUME = -1
-for v in process_volumes:
-    if v > MAX_VOLUME:
-        MAX_VOLUME = v
+col_volumes, col_normatives = tab_processes.columns(2)
 
-MAX_VOLUME = 1000
+# num_processes = 3
+col_volumes.title('Volumes')
+process_volumes = [0] * num_processes
+for i in range(num_processes):
+    process_volumes[i] = col_volumes.number_input(
+        f'volume for process {i}:', min_value=0, step=1)
+# process_volumes = [10, 20, 30]
+col_normatives.title('Normatives')
+process_normatives = [0] * num_processes
+for i in range(num_processes):
+    process_normatives[i] = col_normatives.number_input(
+        f'volume for process {i}:', min_value=0, max_value=20, step=1)
 
-process_normatives = [10, 20, 15]
+# process_normatives = [10, 20, 20]
 
 process_volumes_minutes = [1] * num_processes
 for i in range(num_processes):
     process_volumes_minutes[i] = process_volumes[i] * process_normatives[i]
 
-worker_skills = [
-    [0],
-    [1],
-    [2],
-    [],
-    [],
-    [],
-    []
-]
+# num_workers = 7
+num_workers = tab_workers.slider('number of workers', 1, 30)
+worker_skills = [0] * num_workers
+for i in range(num_workers):
+    worker_skills[i] = tab_workers.multiselect(f'worker {i} skills:',
+                                               options=[j for j in range(num_processes)])
+# worker_skills = [
+#     [0],
+#     [1],
+#     [2],
+#     [],
+#     [],
+#     [],
+#     []
+# ]
 
 worker_skills_matrix = []
 for i in range(num_workers):
@@ -43,7 +51,7 @@ for i in range(num_workers):
         a[skill] = 1
     a = list(numpy.multiply(a, process_normatives))
     worker_skills_matrix.append(a.copy())
-print(worker_skills_matrix)
+tab_workers.table(numpy.array(worker_skills_matrix))
 
 model = pulp.LpProblem('workers to processes', pulp.LpMinimize)
 
@@ -55,16 +63,14 @@ model += pulp.lpSum(is_working)
 items_worker_process = pulp.LpVariable.dicts(
     'items_worker_process', (range(num_workers), range(num_processes)), lowBound=0, cat=pulp.LpInteger)
 
-# do all items in process:
 for process in range(num_processes):
     model += (
         pulp.LpAffineExpression(
             [(items_worker_process[worker][process], worker_skills_matrix[worker][process])
-             for worker in range(num_workers)]) >= process_volumes_minutes[process],
+             for worker in range(num_workers)]) == process_volumes_minutes[process],
         f'process {process} to be done completely'
     )
 
-# work max 480 minutes per day if works
 for worker in range(num_workers):
     model += (
         pulp.LpAffineExpression([(items_worker_process[worker][process], worker_skills_matrix[worker][process])
@@ -74,23 +80,25 @@ for worker in range(num_workers):
 for worker in range(num_workers):
     model += (
         pulp.lpSum([items_worker_process[worker][process]
-                    for process in range(num_processes)]) / MAX_VOLUME <= is_working[worker],
+                    for process in range(num_processes)]) / max(process_volumes) <= is_working[worker],
         f'worker {worker} works if he has tasks'
     )
 
-# how to remove workers ~is_working
-
-print(model)
+# print(model)
 
 status = model.solve()
 if status == pulp.LpStatusOptimal:
+    tab_model.write('working workers:')
+    workers_str = ""
     for worker in range(num_workers):
-        print(f'worker {worker} is working: {is_working[worker].value()}')
+        if is_working[worker].value() > 0:
+            workers_str += str(worker) + ' '
+    tab_model.write(workers_str)
+    worker_array = numpy.zeros((num_workers, num_processes))
     for worker in range(num_workers):
-        print(f'worker {worker}')
         for process in range(num_processes):
-            print(
-                f'{process}: {items_worker_process[worker][process].value()}', end=' ')
-            print()
+            worker_array[worker,
+                         process] = int(items_worker_process[worker][process].value())
+    tab_model.table(worker_array)
 else:
-    print('no solution')
+    tab_model.write('no solution')
