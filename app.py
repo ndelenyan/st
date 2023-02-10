@@ -14,13 +14,13 @@ col_volumes.title('Volumes')
 process_volumes = [0] * num_processes
 for i in range(num_processes):
     process_volumes[i] = col_volumes.number_input(
-        f'volume for process {i}:', min_value=0, step=1)
+        f'volume for process {i}:', min_value=0, value=process_volumes[i], step=1)
 # process_volumes = [10, 20, 30]
 col_normatives.title('Normatives')
 process_normatives = [0] * num_processes
 for i in range(num_processes):
     process_normatives[i] = col_normatives.number_input(
-        f'volume for process {i}:', min_value=0, max_value=20, step=1)
+        f'volume for process {i}:', min_value=0, max_value=20, value=process_normatives[i], step=1)
 
 # process_normatives = [10, 20, 20]
 
