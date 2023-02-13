@@ -80,6 +80,9 @@ for worker in range(num_workers):
         f'worker {worker} works if he has tasks'
     )
 
+
+with tab_model.expander("model description"):
+    st.text(model)
 # print(model)
 
 status = model.solve()
