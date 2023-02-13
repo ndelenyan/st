@@ -20,13 +20,9 @@ col_normatives.title('Normatives')
 process_normatives = [0] * num_processes
 for i in range(num_processes):
     process_normatives[i] = col_normatives.number_input(
-        f'volume for process {i}:', min_value=0, max_value=20, value=process_normatives[i], step=1)
+        f'normative for process {i}:', min_value=0, max_value=20, value=process_normatives[i], step=1)
 
 # process_normatives = [10, 20, 20]
-
-process_volumes_minutes = [1] * num_processes
-for i in range(num_processes):
-    process_volumes_minutes[i] = process_volumes[i] * process_normatives[i]
 
 # num_workers = 7
 num_workers = tab_workers.slider('number of workers', 1, 30)
@@ -49,7 +45,7 @@ for i in range(num_workers):
     a = [0] * num_processes
     for skill in worker_skills[i]:
         a[skill] = 1
-    a = list(numpy.multiply(a, process_normatives))
+#    a = list(numpy.multiply(a, process_normatives))
     worker_skills_matrix.append(a.copy())
 tab_workers.table(numpy.array(worker_skills_matrix))
 
@@ -67,20 +63,20 @@ for process in range(num_processes):
     model += (
         pulp.LpAffineExpression(
             [(items_worker_process[worker][process], worker_skills_matrix[worker][process])
-             for worker in range(num_workers)]) == process_volumes_minutes[process],
+             for worker in range(num_workers)]) == process_volumes[process],
         f'process {process} to be done completely'
     )
 
 for worker in range(num_workers):
     model += (
-        pulp.LpAffineExpression([(items_worker_process[worker][process], worker_skills_matrix[worker][process])
+        pulp.LpAffineExpression([(items_worker_process[worker][process], worker_skills_matrix[worker][process] * process_normatives[process])
                                 for process in range(num_processes)]) - 480 * is_working[worker] <= 0,
         f'worker {worker} works maximum 480 minutes per day')
 
 for worker in range(num_workers):
     model += (
         pulp.lpSum([items_worker_process[worker][process]
-                    for process in range(num_processes)]) / max(process_volumes) <= is_working[worker],
+                    for process in range(num_processes)]) / (sum(process_volumes) if sum(process_volumes) > 0 else 1) <= is_working[worker],
         f'worker {worker} works if he has tasks'
     )
 
